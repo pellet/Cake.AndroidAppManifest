@@ -200,7 +200,8 @@ namespace Cake.AndroidAppManifest
                 IndentChars = "\t",
                 NewLineChars = "\n"
             };
-            using (var writer = XmlTextWriter.Create(fileName, xmlSettings))
+            using (var stream = File.OpenWrite(fileName))
+            using (var writer = XmlWriter.Create(stream, xmlSettings))
             {
                 Write(writer);
             }
