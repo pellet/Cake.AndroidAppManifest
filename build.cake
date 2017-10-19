@@ -57,33 +57,6 @@ Action<string> RestorePackages = (solution) =>
     NuGetRestore(solution, new NuGetRestoreSettings() { ConfigFile = "./src/.nuget/NuGet.config" });
 };
 
-Action<string, string> Package = (nuspec, basePath) =>
-{
-    CreateDirectory(artifactDirectory);
-
-    Information("Packaging {0} using {1} as the BasePath.", nuspec, basePath);
-
-    NuGetPack(nuspec, new NuGetPackSettings {
-        Authors                  = new [] { "Geoffrey Huntley" },
-        Owners                   = new [] { "ghuntley" },
-
-        ProjectUrl               = new Uri("https://ghuntley.com/"),
-        IconUrl                  = new Uri("https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png"),
-        LicenseUrl               = new Uri("https://opensource.org/licenses/MIT"),
-        Copyright                = "Copyright (c) Geoffrey Huntley",
-        RequireLicenseAcceptance = false,
-
-        Version                  = semVersion,
-        Tags                     = new [] {  "Cake", "Script", "Build", "Xamarin", "Android" },
-        ReleaseNotes             = new List<string>(releaseNotes.Notes),
-
-        Symbols                  = true,
-        Verbosity                = NuGetVerbosity.Detailed,
-        OutputDirectory          = artifactDirectory,
-        BasePath                 = basePath,
-    });
-};
-
 Action<string> SourceLink = (solutionFileName) =>
 {
     GitLink("./", new GitLinkSettings() {
@@ -97,12 +70,12 @@ Action<string> SourceLink = (solutionFileName) =>
 ///////////////////////////////////////////////////////////////////////////////
 // SETUP / TEARDOWN
 ///////////////////////////////////////////////////////////////////////////////
-Setup(() =>
+Setup((ctx) =>
 {
     Information("Building version {0} of Cake.AndroidAppManifest.", semVersion);
 });
 
-Teardown(() =>
+Teardown((ctx) =>
 {
     // Executed AFTER the last task.
 });
@@ -132,6 +105,7 @@ Task("Build")
             .SetVerbosity(Verbosity.Minimal)
             .SetNodeReuse(false));
 
+        Information("Running GitLink for {0}", solution);
         SourceLink(solution);
     };
 
@@ -181,7 +155,14 @@ Task("Package")
     .IsDependentOn("RunUnitTests")
     .Does (() =>
 {
-    Package("./src/Cake.AndroidAppManifest.nuspec", "./src/Cake.AndroidAppManifest");
+    // switched to msbuild-based nuget creation
+    // see here for parameters: https://docs.microsoft.com/en-us/nuget/schema/msbuild-targets
+    MSBuild ("./src/Cake.AndroidAppManifest/Cake.AndroidAppManifest.csproj", c => {
+		c.Configuration = configuration;
+		c.Targets.Add ("pack");
+		c.Properties.Add ("IncludeSymbols", new List<string> { "true" });
+		c.Properties.Add ("PackageReleaseNotes", new List<string> { releaseNotes });
+	});
 });
 
 Task("Publish")
