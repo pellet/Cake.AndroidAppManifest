@@ -10,12 +10,13 @@
 
 #tool GitVersion.CommandLine
 #tool GitLink
+#tool xunit.runner.console
 
 //////////////////////////////////////////////////////////////////////
 // ARGUMENTS
 //////////////////////////////////////////////////////////////////////
 
-var target = Argument("target", "Default");
+var target = Argument("target", "Publish");
 var configuration = Argument("configuration", "Release");
 
 //////////////////////////////////////////////////////////////////////
@@ -105,8 +106,8 @@ Task("Build")
             .SetVerbosity(Verbosity.Minimal)
             .SetNodeReuse(false));
 
-        Information("Running GitLink for {0}", solution);
-        SourceLink(solution);
+        //Information("Running GitLink for {0}", solution);
+        //SourceLink(solution);
     };
 
     build("Cake.AndroidAppManifest.sln");
@@ -161,7 +162,7 @@ Task("Package")
 		c.Configuration = configuration;
 		c.Targets.Add ("pack");
 		c.Properties.Add ("IncludeSymbols", new List<string> { "true" });
-		c.Properties.Add ("PackageReleaseNotes", new List<string> { releaseNotes });
+		c.Properties.Add ("PackageReleaseNotes", new List<string>(releaseNotes.Notes));
 	});
 });
 
@@ -210,4 +211,4 @@ Task("Publish")
 // EXECUTION
 //////////////////////////////////////////////////////////////////////
 
-RunTarget("Publish");
+RunTarget(target);
