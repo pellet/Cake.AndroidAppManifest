@@ -10,7 +10,7 @@
 
 #tool GitVersion.CommandLine
 #tool GitLink
-#tool xunit.runner.console
+#tool xunit.runner.console&version=2.3.1
 
 //////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -31,11 +31,8 @@ var local = BuildSystem.IsLocalBuild;
 var isRunningOnUnix = IsRunningOnUnix();
 var isRunningOnWindows = IsRunningOnWindows();
 
-//var isRunningOnBitrise = Bitrise.IsRunningOnBitrise;
 var isRunningOnAppVeyor = AppVeyor.IsRunningOnAppVeyor;
 var isPullRequest = AppVeyor.Environment.PullRequest.IsPullRequest;
-
-var isRepository = StringComparer.OrdinalIgnoreCase.Equals("ghuntley/Cake.AndroidAppManifest", AppVeyor.Environment.Repository.Name);
 
 // Parse release notes.
 var releaseNotes = ParseReleaseNotes("RELEASENOTES.md");
@@ -45,7 +42,7 @@ var version = releaseNotes.Version.ToString();
 var epoch = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
 var gitSha = GitVersion().Sha;
 
-var semVersion = local ? string.Format("{0}.{1}", version, epoch) : string.Format("{0}.{1}", version, epoch);
+var semVersion = string.Format("{0}.{1}", version, epoch);
 
 // Define directories.
 var artifactDirectory = "./artifacts/";
@@ -55,7 +52,7 @@ Action Abort = () => { throw new Exception("a non-recoverable fatal error occurr
 
 Action<string> RestorePackages = (solution) =>
 {
-    NuGetRestore(solution, new NuGetRestoreSettings() { ConfigFile = "./src/.nuget/NuGet.config" });
+    NuGetRestore(solution);
 };
 
 Action<string> SourceLink = (solutionFileName) =>
@@ -71,12 +68,12 @@ Action<string> SourceLink = (solutionFileName) =>
 ///////////////////////////////////////////////////////////////////////////////
 // SETUP / TEARDOWN
 ///////////////////////////////////////////////////////////////////////////////
-Setup((ctx) =>
+Setup((context) =>
 {
     Information("Building version {0} of Cake.AndroidAppManifest.", semVersion);
 });
 
-Teardown((ctx) =>
+Teardown((context) =>
 {
     // Executed AFTER the last task.
 });
@@ -164,42 +161,6 @@ Task("Package")
 		c.Properties.Add ("IncludeSymbols", new List<string> { "true" });
 		c.Properties.Add ("PackageReleaseNotes", new List<string>(releaseNotes.Notes));
 	});
-});
-
-Task("Publish")
-    .IsDependentOn("Package")
-    .WithCriteria(() => !local)
-    .WithCriteria(() => !isPullRequest)
-    .WithCriteria(() => isRepository)
-    .Does (() =>
-{
-    // Resolve the API key.
-    var apiKey = EnvironmentVariable("MYGET_API_KEY");
-    if (string.IsNullOrEmpty(apiKey))
-    {
-        throw new InvalidOperationException("Could not resolve MyGet API key.");
-    }
-
-    // only push whitelisted packages.
-    foreach(var package in new[] { "Cake.AndroidAppManifest" })
-    {
-        // only push the package which was created during this build run.
-        var packagePath = artifactDirectory + File(string.Concat(package, ".", semVersion, ".nupkg"));
-        //var symbolsPath = artifactDirectory + File(string.Concat(package, ".", semVersion, ".symbols.nupkg"));
-
-        // Push the package.
-        NuGetPush(packagePath, new NuGetPushSettings {
-            Source = "https://www.myget.org/F/ghuntley/api/v2/package",
-            ApiKey = apiKey
-        });
-
-        // Push the symbols
-        //NuGetPush(symbolsPath, new NuGetPushSettings {
-        //    Source = "https://www.myget.org/F/ghuntley/api/v2/package",
-        //    ApiKey = apiKey
-        //});
-
-    }
 });
 
 //////////////////////////////////////////////////////////////////////
