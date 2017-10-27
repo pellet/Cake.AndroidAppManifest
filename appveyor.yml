@@ -11,5 +11,7 @@ build_script:
 
 test: off
 
+image: Visual Studio 2017
+
 artifacts:
 - path: ./artifacts/*.nupkg
